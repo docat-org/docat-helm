@@ -67,7 +67,10 @@ spec:
     - metadata:
         name: {{ include "docat.fullname" . }}
       spec:
-        accessModes: [ "ReadWriteOnce" ]
+        accessModes:
+        {{- range .Values.persistence.accessModes }}
+          - {{ . | quote }}
+        {{- end }}
         resources:
           requests:
-            storage: 1Gi  # Adjust the size as needed
+            storage: {{ .Values.persistence.size | default "1Gi" | quote }}

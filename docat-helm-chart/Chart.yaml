@@ -1,0 +1,24 @@
+apiVersion: v2
+type: application
+
+name: docat
+description: Docat helm chart
+
+version: 0.0.1
+appVersion: "1.1.1"
+
+home: https://github.com/docat-org
+sources:
+  - https://github.com/docat-org/docat-helm
+  - https://github.com/docat-org/docat
+  - https://github.com/docat-org/docatl
+icon: https://repository-images.githubusercontent.com/220474250/f6e06000-5d2e-11ea-857c-96915cf144dc
+
+maintainers:
+  - name: Rui Martins
+    email: ruimartinsptl+docat@gmail.com
+    url: rui.martins.pt
+
+keywords:
+  - docat
+  - documentation
