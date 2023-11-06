@@ -3,7 +3,6 @@ replicaCount: 1
 image:
   repository: ghcr.io/docat-org/docat
   pullPolicy: IfNotPresent
-  # tag: "1.1.1"
   tag: null
 
 imagePullSecrets: []
