@@ -5,6 +5,6 @@
 ## Install chart
 
 ```bash
+cd docat-helm-chart
 helm upgrade --install docat .
 ```
-
