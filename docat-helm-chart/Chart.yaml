@@ -5,7 +5,7 @@ name: docat
 description: Docat helm chart
 
 version: 0.0.1
-appVersion: "1.1.1"
+appVersion: "1.2.0"
 
 home: https://github.com/docat-org
 sources:
