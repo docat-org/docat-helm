@@ -45,7 +45,15 @@ jobs:
             | kubeconform -strict -summary
           helm template docat "${CHART_DIR}" \
             --set ingress.enabled=true \
-            --set autoscaling.enabled=true \
+            --set persistence.storageClass=- \
+            --set "env[0].name=MAX_UPLOAD_SIZE" \
+            --set "env[0].value=500M" \
+            | kubeconform -strict -summary
+          helm template docat "${CHART_DIR}" \
+            --set persistence.existingClaim=docat-data \
+            | kubeconform -strict -summary
+          helm template docat "${CHART_DIR}" \
+            --set persistence.enabled=false \
             | kubeconform -strict -summary
 
   install:
@@ -86,6 +94,50 @@ jobs:
 
       - name: Smoke test
         run: ./ci/smoke-test.sh
+
+      - name: Debug info
+        if: failure()
+        run: |
+          kubectl get all,pvc,events -o wide
+          kubectl describe pods -l app.kubernetes.io/instance=docat
+          kubectl logs -l app.kubernetes.io/instance=docat --all-containers --tail=200
+
+  # Upgrades from chart 0.x (StatefulSet) following the migration steps in the README
+  upgrade-from-0x:
+    runs-on: ubuntu-latest
+    needs: lint
+    env:
+      # Last commit with chart 0.0.1
+      PREVIOUS_CHART_REF: 17f518452d52b26717fbdee16ff0a86067443052
+      PREVIOUS_CHART_DIR: /tmp/previous-chart
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install k3d
+        run: |
+          curl -fsSL -o k3d "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-linux-amd64"
+          sudo install k3d /usr/local/bin/k3d
+
+      - name: Create k3s cluster
+        run: k3d cluster create ci --wait
+
+      - name: Install chart 0.x and upload docs
+        run: |
+          git worktree add "${PREVIOUS_CHART_DIR}" "${PREVIOUS_CHART_REF}"
+          helm install docat "${PREVIOUS_CHART_DIR}/${CHART_DIR}" --wait --timeout 5m
+          WORKLOAD=statefulset/docat ./ci/smoke-test.sh upload
+
+      - name: Upgrade to this chart reusing the 0.x volume
+        run: |
+          helm upgrade docat "${CHART_DIR}" --wait --timeout 5m \
+            --set persistence.existingClaim=docat-docat-0
+
+      - name: Check docs survived the upgrade
+        run: ./ci/smoke-test.sh check
 
       - name: Debug info
         if: failure()
