@@ -95,6 +95,19 @@ jobs:
       - name: Smoke test
         run: ./ci/smoke-test.sh
 
+      - name: Uninstall and install again, keeping the docs
+        env:
+          IMAGE_TAG: ${{ matrix.image-tag }}
+        run: |
+          helm uninstall docat --wait
+          kubectl get pvc docat
+          args=()
+          if [[ "${IMAGE_TAG}" != "appVersion" ]]; then
+            args+=(--set "image.tag=${IMAGE_TAG}")
+          fi
+          helm install docat "${CHART_DIR}" --wait --timeout 5m "${args[@]}"
+          ./ci/smoke-test.sh check
+
       - name: Debug info
         if: failure()
         run: |

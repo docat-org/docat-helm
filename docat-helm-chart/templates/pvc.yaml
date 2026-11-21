@@ -5,9 +5,15 @@ metadata:
   name: {{ include "docat.fullname" . }}
   labels:
     {{- include "docat.labels" . | nindent 4 }}
-  {{- with .Values.persistence.annotations }}
+  {{- if or .Values.persistence.keep .Values.persistence.annotations }}
   annotations:
+    {{- if .Values.persistence.keep }}
+    # Keep the docs when the release is uninstalled
+    helm.sh/resource-policy: keep
+    {{- end }}
+    {{- with .Values.persistence.annotations }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
   accessModes:

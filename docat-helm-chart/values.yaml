@@ -77,6 +77,9 @@ persistence:
   enabled: true
   # Use an existing PersistentVolumeClaim instead of creating one
   existingClaim: ""
+  # Keep the PersistentVolumeClaim (and the docs) when the release is uninstalled.
+  # Installing again with the same release name reuses it
+  keep: true
   # Empty uses the cluster default StorageClass, "-" disables dynamic provisioning
   storageClass: ""
   accessModes:
