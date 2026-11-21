@@ -1,0 +1,48 @@
+apiVersion: v2
+type: application
+
+name: docat
+description: Docat helm chart
+
+version: 1.0.0
+appVersion: "1.6.1"
+
+home: https://github.com/docat-org
+sources:
+  - https://github.com/docat-org/docat-helm
+  - https://github.com/docat-org/docat
+  - https://github.com/docat-org/docatl
+icon: https://repository-images.githubusercontent.com/220474250/f6e06000-5d2e-11ea-857c-96915cf144dc
+
+maintainers:
+  - name: Rui Martins
+    email: ruimartinsptl+docat@gmail.com
+    url: rui.martins.pt
+
+keywords:
+  - docat
+  - documentation
+
+annotations:
+  artifacthub.io/license: MIT
+  artifacthub.io/images: |
+    - name: docat
+      image: ghcr.io/docat-org/docat:1.6.1
+  artifacthub.io/links: |
+    - name: Docat
+      url: https://github.com/docat-org/docat
+    - name: Upgrading from 0.x
+      url: https://github.com/docat-org/docat-helm#upgrading-from-0x
+  artifacthub.io/changes: |
+    - kind: changed
+      description: Replace the StatefulSet with a single replica Deployment (Recreate strategy)
+    - kind: changed
+      description: Update Docat to 1.6.1
+    - kind: added
+      description: persistence.enabled, existingClaim, storageClass, annotations and keep values
+    - kind: added
+      description: env, envFrom, livenessProbe and readinessProbe values
+    - kind: fixed
+      description: Container port is always 80, independent of service.port
+    - kind: removed
+      description: HPA, replicaCount and autoscaling values

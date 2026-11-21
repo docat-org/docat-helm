@@ -1,14 +1,22 @@
 # docat helm
 
 [![CI](https://github.com/docat-org/docat-helm/actions/workflows/ci.yaml/badge.svg)](https://github.com/docat-org/docat-helm/actions/workflows/ci.yaml)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/docat)](https://artifacthub.io/packages/search?repo=docat)
 
 ![](https://raw.githubusercontent.com/docat-org/.github/main/logo.png)
 
 ## Install chart
 
 ```bash
-cd docat-helm-chart
-helm upgrade --install docat .
+helm repo add docat https://docat-org.github.io/docat-helm
+helm repo update
+helm upgrade --install docat docat/docat
+```
+
+Or from a clone of this repository:
+
+```bash
+helm upgrade --install docat ./charts/docat
 ```
 
 Docat stores its docs and database on a single `ReadWriteOnce` volume mounted at `/var/docat`,
@@ -61,7 +69,7 @@ Its name is `<fullname>-<fullname>-0`, which is `docat-docat-0` for a release na
 
 ```bash
 kubectl get pvc   # find the existing claim
-helm upgrade docat ./docat-helm-chart --set persistence.existingClaim=docat-docat-0
+helm upgrade docat docat/docat --set persistence.existingClaim=docat-docat-0
 ```
 
 The CI tests this upgrade path.
@@ -82,6 +90,17 @@ A specific Docat image tag can be tested by running the workflow manually (`work
 The smoke test also runs against any cluster where the chart is installed:
 
 ```bash
-helm upgrade --install docat ./docat-helm-chart --wait
+helm upgrade --install docat ./charts/docat --wait
 ./ci/smoke-test.sh
 ```
+
+## Releasing
+
+Bump `version` in [`charts/docat/Chart.yaml`](charts/docat/Chart.yaml) (and `appVersion` for a new Docat image) and
+update the `artifacthub.io/changes` annotation. When merged to `main`,
+[`.github/workflows/release.yaml`](.github/workflows/release.yaml) creates the GitHub Release and updates the Helm
+repository on the `gh-pages` branch, which [Artifact Hub](https://artifacthub.io) indexes.
+
+## License
+
+[MIT](LICENSE)
