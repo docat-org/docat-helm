@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    # Weekly, to catch new Docat images that break the chart even when this repository doesn't change
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: Docat image tag to test (empty tests the chart appVersion and latest)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  CHART_DIR: docat-helm-chart
+  KUBECONFORM_VERSION: v0.7.0
+  K3D_VERSION: v5.8.3
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: azure/setup-helm@v4
+
+      - name: Helm lint
+        run: helm lint --strict "${CHART_DIR}"
+
+      - name: Install kubeconform
+        run: |
+          url="https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}"
+          curl -fsSL "${url}/kubeconform-linux-amd64.tar.gz" | sudo tar -xz -C /usr/local/bin kubeconform
+
+      - name: Validate rendered manifests
+        run: |
+          helm template docat "${CHART_DIR}" \
+            | kubeconform -strict -summary
+          helm template docat "${CHART_DIR}" \
+            --set ingress.enabled=true \
+            --set autoscaling.enabled=true \
+            | kubeconform -strict -summary
+
+  install:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        # "appVersion" means no image.tag override, so the chart default is tested
+        image-tag: >-
+          ${{ fromJSON(inputs.image-tag && format('["{0}"]', inputs.image-tag) || '["appVersion", "latest"]') }}
+    name: install (${{ matrix.image-tag }})
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install k3d
+        run: |
+          curl -fsSL -o k3d "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-linux-amd64"
+          sudo install k3d /usr/local/bin/k3d
+
+      - name: Create k3s cluster
+        run: k3d cluster create ci --wait
+
+      - name: Install chart
+        env:
+          IMAGE_TAG: ${{ matrix.image-tag }}
+        run: |
+          args=()
+          if [[ "${IMAGE_TAG}" != "appVersion" ]]; then
+            args+=(--set "image.tag=${IMAGE_TAG}")
+          fi
+          helm install docat "${CHART_DIR}" --wait --timeout 5m "${args[@]}"
+
+      - name: Helm test
+        run: helm test docat --logs
+
+      - name: Smoke test
+        run: ./ci/smoke-test.sh
+
+      - name: Debug info
+        if: failure()
+        run: |
+          kubectl get all,pvc,events -o wide
+          kubectl describe pods -l app.kubernetes.io/instance=docat
+          kubectl logs -l app.kubernetes.io/instance=docat --all-containers --tail=200
