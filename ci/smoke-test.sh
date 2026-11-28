@@ -2,15 +2,21 @@
 # Smoke test an installed Docat release:
 # upload docs through the API, read them back through nginx,
 # restart the workload and check the docs survived (persistent volume).
+#
+# Usage: smoke-test.sh [all|upload|check]
+#   all     upload, check, restart and check again (default)
+#   upload  only upload the docs
+#   check   only check the docs are served, e.g. after a chart upgrade
 set -euo pipefail
 
+MODE="${1:-all}"
 RELEASE="${RELEASE:-docat}"
 NAMESPACE="${NAMESPACE:-default}"
-WORKLOAD="${WORKLOAD:-statefulset/${RELEASE}}"
+WORKLOAD="${WORKLOAD:-deployment/${RELEASE}}"
 LOCAL_PORT="${LOCAL_PORT:-8080}"
 PROJECT="ci-smoke-test"
 VERSION="1.0.0"
-MARKER="docat-helm-ci-$(date +%s)"
+MARKER="docat-helm-ci-smoke-test"
 
 BASE_URL="http://127.0.0.1:${LOCAL_PORT}"
 WORKDIR="$(mktemp -d)"
@@ -55,19 +61,43 @@ check_docs() {
   fi
 }
 
-echo "==> Building test docs archive"
-mkdir -p "${WORKDIR}/docs"
-echo "<html><body>${MARKER}</body></html>" >"${WORKDIR}/docs/index.html"
-(cd "${WORKDIR}/docs" && zip -q ../docs.zip index.html)
+upload_docs() {
+  echo "==> Building test docs archive"
+  mkdir -p "${WORKDIR}/docs"
+  echo "<html><body>${MARKER}</body></html>" >"${WORKDIR}/docs/index.html"
+  (cd "${WORKDIR}/docs" && zip -q ../docs.zip index.html)
+
+  echo "==> Uploading ${PROJECT}/${VERSION}"
+  curl -fsS -X POST -F "file=@${WORKDIR}/docs.zip" "${BASE_URL}/api/${PROJECT}/${VERSION}"
+  echo
+}
+
+case "${MODE}" in
+  all | upload | check) ;;
+  *)
+    echo "Unknown mode: ${MODE} (expected all, upload or check)" >&2
+    exit 1
+    ;;
+esac
 
 start_port_forward
 
-echo "==> Uploading ${PROJECT}/${VERSION}"
-curl -fsS -X POST -F "file=@${WORKDIR}/docs.zip" "${BASE_URL}/api/${PROJECT}/${VERSION}"
-echo
+if [[ "${MODE}" != "check" ]]; then
+  upload_docs
+fi
+
+if [[ "${MODE}" == "upload" ]]; then
+  echo "==> Upload done"
+  exit 0
+fi
 
 echo "==> Reading docs back"
 check_docs
+
+if [[ "${MODE}" == "check" ]]; then
+  echo "==> Check passed"
+  exit 0
+fi
 
 echo "==> Restarting ${WORKLOAD} to check persistence"
 kubectl -n "${NAMESPACE}" rollout restart "${WORKLOAD}"

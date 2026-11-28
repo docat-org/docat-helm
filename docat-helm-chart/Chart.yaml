@@ -4,8 +4,8 @@ type: application
 name: docat
 description: Docat helm chart
 
-version: 0.0.1
-appVersion: "1.2.0"
+version: 1.0.0
+appVersion: "1.6.1"
 
 home: https://github.com/docat-org
 sources:
